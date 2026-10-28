@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://skyport.com/booking"
+           targetNamespace="http://skyport.com/booking"
+           elementFormDefault="qualified">
+
+  <xs:element name="BookTicketRequest">
+    <xs:complexType><xs:sequence>
+      <xs:element name="flightNumber" type="xs:string"/>
+      <xs:element name="passengerName" type="xs:string"/>
+      <xs:element name="email" type="xs:string"/>
+      <xs:element name="seatClass" type="xs:string"/>
+      <xs:element name="basePrice" type="xs:double"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="BookTicketResponse">
+    <xs:complexType><xs:sequence><xs:element name="booking" type="tns:Booking"/></xs:sequence></xs:complexType>
+  </xs:element>
+
+  <xs:element name="GetBookingRequest">
+    <xs:complexType><xs:sequence><xs:element name="reference" type="xs:string"/></xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="GetBookingResponse">
+    <xs:complexType><xs:sequence><xs:element name="booking" type="tns:Booking"/></xs:sequence></xs:complexType>
+  </xs:element>
+
+  <xs:element name="CancelBookingRequest">
+    <xs:complexType><xs:sequence><xs:element name="reference" type="xs:string"/></xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="CancelBookingResponse">
+    <xs:complexType><xs:sequence><xs:element name="booking" type="tns:Booking"/></xs:sequence></xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="Booking">
+    <xs:sequence>
+      <xs:element name="reference" type="xs:string"/>
+      <xs:element name="flightNumber" type="xs:string"/>
+      <xs:element name="passengerName" type="xs:string"/>
+      <xs:element name="email" type="xs:string"/>
+      <xs:element name="seatClass" type="xs:string"/>
+      <xs:element name="seat" type="xs:string"/>
+      <xs:element name="price" type="xs:double"/>
+      <xs:element name="status" type="xs:string"/>
+      <xs:element name="createdAt" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyPort: live flights and tickets</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ffb627'/%3E%3Cpath fill='%230c1424' d='M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z' transform='translate(2 2) scale(.83)'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#top" aria-label="SkyPort home">
+      <span class="brand-mark" id="brandMark"></span>
+      <span class="brand-name">SkyPort</span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#radar">Radar</a>
+      <a href="#board">Departures</a>
+      <a href="#tickets">My tickets</a>
+      <a href="#how">How it works</a>
+    </nav>
+    <span class="live" id="live" role="status"><i></i><span>Connecting</span></span>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="radar">
+      <div class="hero-head">
+        <h1>Every SkyPort flight, live.</h1>
+        <p>Six aircraft are in the air right now. Pick one on the radar to follow its altitude, speed and arrival time, or book a seat from the board below.</p>
+      </div>
+
+      <div class="hero-body">
+        <div class="radar-wrap">
+          <canvas id="radar-canvas" aria-label="Live map of SkyPort aircraft. Select a plane to follow it."></canvas>
+        </div>
+
+        <aside class="panel" aria-live="polite">
+          <div class="panel-top">
+            <div>
+              <div class="panel-flight" id="pFlight">SP101</div>
+              <div class="panel-route" id="pRoute">Tunis to Paris</div>
+            </div>
+            <span class="phase" id="pPhase">Cruising</span>
+          </div>
+          <div class="stats">
+            <div><b id="pAlt">0</b><span>Altitude, ft</span></div>
+            <div><b id="pSpd">0</b><span>Speed, kts</span></div>
+            <div><b id="pHdg">0</b><span>Heading, deg</span></div>
+            <div><b id="pEta">0</b><span>Arrives in</span></div>
+          </div>
+          <div class="trip" aria-hidden="true"><i id="pBar"></i></div>
+          <button class="btn amber" id="pBook" type="button">Book this flight</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="board-sec" id="board">
+      <div class="sec-head">
+        <h2>Departures</h2>
+        <p>Prices are for Economy. Business costs 2.4 times more, First 4 times.</p>
+      </div>
+      <div class="board" id="boardRows" role="list"></div>
+    </section>
+
+    <section class="tickets-sec" id="tickets">
+      <div class="sec-head">
+        <h2>My tickets</h2>
+        <p>Tickets you book here are kept in the booking service and shown on this device.</p>
+      </div>
+      <div class="tickets" id="ticketList"></div>
+    </section>
+
+    <section class="how" id="how">
+      <div class="sec-head">
+        <h2>How the page talks to the platform</h2>
+        <p>Three protocols, one request path. Each line below is a real network call.</p>
+      </div>
+      <ol class="hops">
+        <li class="rest"><div class="hop-who">Browser <em>to</em> Gateway</div><span class="tag">REST + SSE</span><p>The page calls <code>/api/flights</code> and listens to a live feed on <code>/api/telemetry/stream</code>.</p><code class="cmd">curl localhost:8080/api/flights</code></li>
+        <li class="grpc"><div class="hop-who">Gateway <em>to</em> Flight service</div><span class="tag">gRPC</span><p>Typed calls fetch flights. A server stream pushes one position update per second per aircraft.</p><code class="cmd">grpcurl -plaintext localhost:9090 list</code></li>
+        <li class="soap"><div class="hop-who">Gateway <em>to</em> Booking service</div><span class="tag">SOAP</span><p>Bookings travel as XML envelopes described by a WSDL contract.</p><code class="cmd">curl localhost:8081/ws/bookings.wsdl</code></li>
+        <li class="db"><div class="hop-who">Booking service <em>to</em> PostgreSQL</div><span class="tag">JDBC</span><p>Every ticket is stored in a database that lives in a Docker volume, so it survives restarts.</p><code class="cmd">docker compose exec postgres psql -U skyport -c "select * from bookings"</code></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="foot">SkyPort is a demo platform. All flights are simulated.</footer>
+
+  <dialog id="bookDialog" aria-labelledby="bkTitle">
+    <form id="bookForm" method="dialog">
+      <div class="dlg-head">
+        <div>
+          <h3 id="bkTitle">Book a seat</h3>
+          <p id="bkRoute"></p>
+        </div>
+        <button type="button" class="x" id="bkClose" aria-label="Close">&times;</button>
+      </div>
+
+      <label>Passenger name
+        <input id="bkName" autocomplete="name" required placeholder="As on your passport">
+      </label>
+      <label>Email
+        <input id="bkEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+      </label>
+
+      <fieldset>
+        <legend>Seat class</legend>
+        <div class="classes" id="bkClasses"></div>
+      </fieldset>
+
+      <p class="form-error" id="bkError" role="alert" hidden></p>
+      <div class="dlg-foot">
+        <button type="button" class="btn ghost" id="bkCancel">Cancel</button>
+        <button type="submit" class="btn amber" id="bkSubmit">Book seat</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

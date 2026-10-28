@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: skyport
+      POSTGRES_USER: skyport
+      POSTGRES_PASSWORD: skyport_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyport -d skyport"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  flight-service:            # gRPC
+    build:
+      context: .
+      dockerfile: flight-service/Dockerfile
+    ports:
+      - "9090:9090"
+
+  booking-service:           # SOAP + PostgreSQL
+    build:
+      context: .
+      dockerfile: booking-service/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/skyport
+      DB_USER: skyport
+      DB_PASSWORD: skyport_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+
+  gateway:                   # REST + web UI
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      FLIGHT_GRPC_HOST: flight-service
+      BOOKING_SOAP_URL: http://booking-service:8081/ws
+    depends_on:
+      - flight-service
+      - booking-service
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

@@ -1,0 +1,43 @@
+syntax = "proto3";
+package skyport;
+option java_multiple_files = true;
+option java_package = "com.skyport.proto";
+
+service FlightService {
+  rpc ListFlights (Empty) returns (FlightList);
+  rpc GetFlight (FlightRequest) returns (Flight);
+  // server-streaming: one Telemetry message per second until the client cancels
+  rpc StreamTelemetry (FlightRequest) returns (stream Telemetry);
+}
+
+message Empty {}
+message FlightRequest { string flight_number = 1; }
+message FlightList { repeated Flight flights = 1; }
+
+message Flight {
+  string flight_number = 1;
+  string airline = 2;
+  string origin = 3;
+  string origin_city = 4;
+  string destination = 5;
+  string destination_city = 6;
+  double origin_lat = 7;
+  double origin_lon = 8;
+  double dest_lat = 9;
+  double dest_lon = 10;
+  double base_price = 11;
+  int32 duration_minutes = 12;
+  string aircraft = 13;
+}
+
+message Telemetry {
+  string flight_number = 1;
+  double latitude = 2;
+  double longitude = 3;
+  int32 altitude_ft = 4;
+  int32 speed_kts = 5;
+  int32 heading_deg = 6;
+  double progress = 7;
+  string phase = 8;
+  int32 eta_minutes = 9;
+}
