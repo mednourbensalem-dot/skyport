@@ -1,8 +1,0 @@
-Redesign web UI: Leaflet map, Tunisia hub, i18n, PDF tickets
-
-- Replace canvas radar with a Leaflet/OpenStreetMap live map of moving aircraft
-- Rebuild flight fleet as a Tunis-Carthage hub to 9 Mediterranean destinations
-- Restyle the gateway UI with a royal red/white/gold theme
-- Add Arabic, English and French translations with RTL for Arabic
-- Add downloadable boarding-pass PDF tickets (jsPDF)
-- Add a departures search filter; remove the "how it works" section
