@@ -27,13 +27,17 @@ public class FlightGrpcService extends FlightServiceGrpc.FlightServiceImplBase {
 
     private record Spec(Flight flight, long offsetMs) {}
 
+    // Tunis–Carthage hub flying to Mediterranean destinations (real airport coordinates)
     private final List<Spec> fleet = List.of(
-            spec("SP101", "TUN", "Tunis", 36.851, 10.227, "CDG", "Paris", 49.0097, 2.5479, 189, 150, "Airbus A320", 0.35),
-            spec("SP202", "CDG", "Paris", 49.0097, 2.5479, "JFK", "New York", 40.6413, -73.7781, 540, 500, "Boeing 787", 0.10),
-            spec("SP303", "DXB", "Dubai", 25.2532, 55.3657, "SIN", "Singapore", 1.3644, 103.9915, 620, 465, "Airbus A350", 0.62),
-            spec("SP404", "HND", "Tokyo", 35.5494, 139.7798, "SYD", "Sydney", -33.9399, 151.1753, 710, 590, "Boeing 787", 0.80),
-            spec("SP505", "LHR", "London", 51.47, -0.4543, "CAI", "Cairo", 30.1219, 31.4056, 310, 295, "Airbus A321", 0.50),
-            spec("SP606", "TUN", "Tunis", 36.851, 10.227, "IST", "Istanbul", 41.2753, 28.7519, 210, 165, "Boeing 737", 0.20));
+            spec("SP101", "TUN", "Tunis", 36.851, 10.227, "CDG", "Paris",       49.0097,   2.5479, 155, 150, "Airbus A320", 0.35),
+            spec("SP202", "TUN", "Tunis", 36.851, 10.227, "FCO", "Rome",        41.8003,  12.2389, 110, 105, "Airbus A320", 0.10),
+            spec("SP303", "TUN", "Tunis", 36.851, 10.227, "MXP", "Milan",       45.6306,   8.7281, 120, 125, "Airbus A319", 0.62),
+            spec("SP404", "TUN", "Tunis", 36.851, 10.227, "FRA", "Frankfurt",  50.0379,   8.5622, 140, 165, "Airbus A320", 0.80),
+            spec("SP505", "TUN", "Tunis", 36.851, 10.227, "CAI", "Cairo",       30.1219,  31.4056, 160, 190, "Boeing 737",  0.50),
+            spec("SP606", "TUN", "Tunis", 36.851, 10.227, "IST", "Istanbul",    41.2753,  28.7519, 170, 205, "Boeing 737",  0.20),
+            spec("SP707", "TUN", "Tunis", 36.851, 10.227, "ALG", "Algiers",    36.6911,   3.2154,  95,  85, "Airbus A320", 0.45),
+            spec("SP808", "TUN", "Tunis", 36.851, 10.227, "CMN", "Casablanca", 33.3675,  -7.5898, 135, 165, "Airbus A320", 0.30),
+            spec("SP909", "TUN", "Tunis", 36.851, 10.227, "MLA", "Malta",       35.9185,  14.4880,  80,  70, "Airbus A320", 0.70));
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
 
