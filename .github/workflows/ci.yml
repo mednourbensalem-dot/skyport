@@ -20,5 +20,8 @@ jobs:
           cache: maven
           cache-dependency-path: gateway/pom.xml
 
+      - name: Copy proto files
+        run: mkdir -p src/main/proto && cp -r ../proto/. src/main/proto/
+
       - name: Run tests
         run: mvn test
