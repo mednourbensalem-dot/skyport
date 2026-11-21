@@ -12,3 +12,4 @@ target/
 .env
 .DS_Store
 Thumbs.db
+gateway/src/main/proto/
