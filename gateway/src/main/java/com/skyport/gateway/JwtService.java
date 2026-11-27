@@ -1,5 +1,6 @@
 package com.skyport.gateway;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
@@ -14,10 +15,15 @@ import java.util.Date;
 @Service
 public class JwtService {
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+    private static final long TTL_SECONDS = 3600;
+
     private final SecretKey key;
 
+    /** What a validated token carries. */
+    public record Session(String username, String role) {}
+
     public JwtService(@Value("${JWT_SECRET:}") String secret) {
-        if (secret.isBlank()) {
+        if (secret == null || secret.isBlank()) {
             log.warn("JWT_SECRET is not set: using a random key, tokens stop working after a restart");
             this.key = Jwts.SIG.HS256.key().build();
         } else {
@@ -25,19 +31,26 @@ public class JwtService {
         }
     }
 
-    public String create(String username) {
+    public String create(String username, String role) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(username)
+                .claim("role", role)
                 .issuedAt(now)
-                .expiration(new Date(now.getTime() + 3_600_000)) // valid for 1 hour
+                .expiration(new Date(now.getTime() + TTL_SECONDS * 1000))
                 .signWith(key)
                 .compact();
     }
 
-    /** Returns the username, or throws JwtException if the token is invalid or expired. */
-    public String validate(String token) {
-        return Jwts.parser().verifyWith(key).build()
-                .parseSignedClaims(token).getPayload().getSubject();
+    /** Returns the session, or throws a JwtException when the token is invalid or expired. */
+    public Session validate(String token) {
+        Claims claims = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload();
+        String role = claims.get("role", String.class);
+        return new Session(claims.getSubject(), role == null ? "ADMIN" : role);
+    }
+
+    public long ttlSeconds() {
+        return TTL_SECONDS;
     }
 }

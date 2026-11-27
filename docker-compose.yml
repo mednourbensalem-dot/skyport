@@ -34,13 +34,15 @@ services:
     ports:
       - "8081:8081"
 
-  gateway:                   # REST + web UI
+  gateway:                   # REST + SSE + web UI
     build:
       context: .
       dockerfile: gateway/Dockerfile
     environment:
       FLIGHT_GRPC_HOST: flight-service
       BOOKING_SOAP_URL: http://booking-service:8081/ws
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-skyport-admin}
+      JWT_SECRET: ${JWT_SECRET:-skyport-dev-secret-change-me-0123456789}
     depends_on:
       - flight-service
       - booking-service

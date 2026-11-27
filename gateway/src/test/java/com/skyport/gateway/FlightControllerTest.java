@@ -1,5 +1,6 @@
 package com.skyport.gateway;
 
+import com.skyport.proto.FlightServiceGrpc;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,22 +17,22 @@ import static org.mockito.Mockito.when;
 class FlightControllerTest {
 
     @Mock
-    TelemetryHub hub;                 // the FAKE dependency
+    FlightServiceGrpc.FlightServiceBlockingStub flights;   // the FAKE gRPC catalog
+
+    @Mock
+    TelemetryHub hub;                                      // the FAKE telemetry source
 
     @InjectMocks
-    FlightController controller;      // the REAL controller, built with the fake hub
+    FlightController controller;                           // the REAL controller, built with the fakes
 
     @Test
     void telemetry_wrapsHubSnapshotInJsonArray() {
-        // ARRANGE: tell the fake hub what to return
         when(hub.snapshot()).thenReturn(List.of(
                 "{\"flight\":\"SP101\"}",
                 "{\"flight\":\"SP102\"}"));
 
-        // ACT: call the real method
         String result = controller.telemetry();
 
-        // ASSERT: check the result, and that the hub was really used
         assertEquals("[{\"flight\":\"SP101\"},{\"flight\":\"SP102\"}]", result);
         verify(hub).snapshot();
     }

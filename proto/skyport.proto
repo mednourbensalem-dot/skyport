@@ -6,12 +6,21 @@ option java_package = "com.skyport.proto";
 service FlightService {
   rpc ListFlights (Empty) returns (FlightList);
   rpc GetFlight (FlightRequest) returns (Flight);
+  rpc SearchFlights (SearchRequest) returns (FlightList);
+  rpc FleetStats (Empty) returns (Stats);
+
   // server-streaming: one Telemetry message per second until the client cancels
   rpc StreamTelemetry (FlightRequest) returns (stream Telemetry);
+  // server-streaming: every aircraft in one stream, one frame per second
+  rpc StreamFleet (Empty) returns (stream Telemetry);
 }
 
 message Empty {}
 message FlightRequest { string flight_number = 1; }
+message SearchRequest {
+  string origin = 1;        // IATA code or city, case-insensitive, optional
+  string destination = 2;   // IATA code or city, case-insensitive, optional
+}
 message FlightList { repeated Flight flights = 1; }
 
 message Flight {
@@ -28,6 +37,10 @@ message Flight {
   double base_price = 11;
   int32 duration_minutes = 12;
   string aircraft = 13;
+  string gate = 14;
+  int32 seats_available = 15;
+  int32 on_time_percent = 16;
+  double distance_km = 17;
 }
 
 message Telemetry {
@@ -40,4 +53,19 @@ message Telemetry {
   double progress = 7;
   string phase = 8;
   int32 eta_minutes = 9;
+  int32 vertical_speed_fpm = 10;
+  int32 outside_temp_c = 11;
+  int32 wind_kts = 12;
+  int32 fuel_percent = 13;
+}
+
+message Stats {
+  int32 airborne = 1;
+  int32 climbing = 2;
+  int32 cruising = 3;
+  int32 descending = 4;
+  double avg_altitude_ft = 5;
+  double avg_speed_kts = 6;
+  int32 seats_available = 7;
+  double avg_on_time_percent = 8;
 }

@@ -1,8 +1,6 @@
 package com.skyport.gateway;
 
 import com.skyport.proto.Empty;
-import com.skyport.proto.Flight;
-import com.skyport.proto.FlightRequest;
 import com.skyport.proto.FlightServiceGrpc;
 import com.skyport.proto.Telemetry;
 import io.grpc.stub.StreamObserver;
@@ -23,60 +21,71 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Keeps one gRPC server-stream open per flight and fans every update out to all browsers
- * over a single Server-Sent Events connection. Reconnects automatically if the flight service restarts.
+ * Holds one gRPC server-stream open for the whole fleet and fans every frame out to all browsers
+ * over Server-Sent Events. Reconnects automatically if the flight service restarts.
  */
 @Component
 public class TelemetryHub {
     private static final Logger log = LoggerFactory.getLogger(TelemetryHub.class);
 
-    private final FlightServiceGrpc.FlightServiceBlockingStub blocking;
     private final FlightServiceGrpc.FlightServiceStub async;
     private final Map<String, String> latest = new ConcurrentHashMap<>();
     private final List<SseEmitter> subscribers = new CopyOnWriteArrayList<>();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-    public TelemetryHub(FlightServiceGrpc.FlightServiceBlockingStub blocking, FlightServiceGrpc.FlightServiceStub async) {
-        this.blocking = blocking;
+    public TelemetryHub(FlightServiceGrpc.FlightServiceStub async) {
         this.async = async;
+        executor.scheduleAtFixedRate(this::heartbeat, 20, 20, TimeUnit.SECONDS);
     }
 
     @EventListener(ApplicationReadyEvent.class)
     void start() {
-        executor.execute(this::connectAll);
+        executor.execute(this::connect);
     }
 
-    private void connectAll() {
-        try {
-            for (Flight f : blocking.withDeadlineAfter(3, TimeUnit.SECONDS).listFlights(Empty.getDefaultInstance()).getFlightsList()) {
-                open(f.getFlightNumber());
-            }
-            log.info("Streaming live telemetry over gRPC");
-        } catch (Exception e) {
-            log.warn("Flight service not reachable yet, retrying in 3s");
-            executor.schedule(this::connectAll, 3, TimeUnit.SECONDS);
-        }
-    }
-
-    private void open(String flightNumber) {
-        async.streamTelemetry(FlightRequest.newBuilder().setFlightNumber(flightNumber).build(), new StreamObserver<>() {
-            @Override public void onNext(Telemetry t) {
+    private void connect() {
+        async.streamFleet(Empty.getDefaultInstance(), new StreamObserver<>() {
+            @Override
+            public void onNext(Telemetry t) {
                 String json = Json.of(t);
-                latest.put(flightNumber, json);
+                latest.put(t.getFlightNumber(), json);
                 broadcast(json);
             }
-            @Override public void onError(Throwable e) { retry(); }
-            @Override public void onCompleted() { retry(); }
-            private void retry() { executor.schedule(() -> open(flightNumber), 3, TimeUnit.SECONDS); }
+
+            @Override
+            public void onError(Throwable e) {
+                log.warn("Fleet stream lost ({}), reconnecting in 3s", e.getMessage());
+                reconnect();
+            }
+
+            @Override
+            public void onCompleted() {
+                reconnect();
+            }
+
+            private void reconnect() {
+                executor.schedule(TelemetryHub.this::connect, 3, TimeUnit.SECONDS);
+            }
         });
+        log.info("Streaming live fleet telemetry over gRPC");
     }
 
     private void broadcast(String json) {
-        for (SseEmitter s : subscribers) {
+        for (SseEmitter emitter : subscribers) {
             try {
-                s.send(json);
+                emitter.send(json);
             } catch (Exception e) {
-                subscribers.remove(s);
+                subscribers.remove(emitter);
+            }
+        }
+    }
+
+    private void heartbeat() {
+        for (SseEmitter emitter : subscribers) {
+            try {
+                emitter.send(SseEmitter.event().comment("keep-alive"));
+            } catch (Exception e) {
+                subscribers.remove(emitter);
             }
         }
     }
@@ -88,7 +97,11 @@ public class TelemetryHub {
         emitter.onTimeout(() -> subscribers.remove(emitter));
         emitter.onError(t -> subscribers.remove(emitter));
         for (String json : latest.values()) {
-            try { emitter.send(json); } catch (Exception ignored) { }
+            try {
+                emitter.send(json);
+            } catch (Exception ignored) {
+                // emitter already closed
+            }
         }
         return emitter;
     }

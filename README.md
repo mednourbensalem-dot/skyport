@@ -1,6 +1,6 @@
 # SkyPort
 
-A live flight-operations platform that uses **REST**, **SOAP** and **gRPC** together, all running in Docker.
+A live flight-operations and booking site that uses **REST**, **SOAP**, **gRPC** and **SSE** together, running in Docker with **Spring Security + JWT**.
 
 ```
 Browser --REST/SSE--> gateway (8080) --gRPC--> flight-service (9090)
@@ -10,9 +10,9 @@ Browser --REST/SSE--> gateway (8080) --gRPC--> flight-service (9090)
 
 | Service | Tech | What it does |
 |---|---|---|
-| `flight-service` | Java 21, gRPC (server streaming) | Simulated fleet, flight catalog, live telemetry every second |
-| `booking-service` | Java 21, Spring-WS (SOAP), JPA | Books, reads and cancels tickets, stores them in PostgreSQL |
-| `gateway` | Java 21, Spring Boot (REST, SSE) | Serves the web UI and the REST API, calls the other two |
+| `flight-service` | Java 21, gRPC (unary + 2 server streams) | Fleet catalog, route search, aggregate stats, live telemetry (altitude, speed, wind, fuel…) |
+| `booking-service` | Java 21, Spring-WS (SOAP), JPA | Books seats, quotes fares, sells seat maps, checks passengers in, stores everything in PostgreSQL |
+| `gateway` | Java 21, Spring Boot (REST, SSE), Spring Security, JWT | Serves the UI and the REST API, fans telemetry out to browsers, protects the console |
 | `postgres` | PostgreSQL 16 | Ticket storage (Docker volume `pgdata`) |
 
 ## Run it
@@ -25,70 +25,103 @@ docker compose up --build
 
 The first build downloads Maven dependencies and takes a few minutes. Then open **http://localhost:8080**.
 
-Stop with `Ctrl + C`. Run `docker compose down` to remove containers (add `-v` to also delete tickets).
+Sign in to the operations console (bottom of the page) with user `admin` and the password from `ADMIN_PASSWORD` (default `skyport-admin`). Override both secrets when starting the stack:
 
-## Try each protocol
+```
+ADMIN_PASSWORD=my-password JWT_SECRET=a-very-long-random-secret-value-123456 docker compose up --build
+```
 
-**REST (gateway)**
+Stop with `Ctrl + C`. `docker compose down` removes containers (add `-v` to also delete tickets).
+
+## What the site does
+
+- **Live map + inspector** — every aircraft moves along its route, with altitude, speed, heading, ETA, wind, outside temperature, fuel and vertical speed updated once per second.
+- **Flight planner** — filters departures by origin, destination and cabin.
+- **Three-step booking** — passenger details, a real seat map fetched from the SOAP service (window/aisle/extra-legroom fees), then a fare breakdown before confirming.
+- **My tickets** — boarding-pass cards with boarding group, PDF download, cancellation and check-in (seat can be changed while checking in).
+- **Operations console** — JWT-protected dashboard with fleet numbers (gRPC) and booking/revenue numbers (SOAP).
+- **Live activity** — SSE feed of bookings, cancellations and check-ins.
+- **EN / FR / AR** with right-to-left support.
+
+## REST API (gateway, port 8080)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/flights` | full catalog (gRPC `ListFlights`) |
+| GET | `/api/flights/{number}` | one flight |
+| GET | `/api/flights/search?from=TUN&to=FCO` | gRPC `SearchFlights` |
+| GET | `/api/fleet/stats` | gRPC `FleetStats` |
+| GET | `/api/telemetry` | latest frame per aircraft |
+| GET | `/api/telemetry/stream` | SSE, one frame per second |
+| POST | `/api/fare/quote` | `{flightNumber, seatClass, passengers, seat}` → SOAP `QuoteTicket` |
+| GET | `/api/seats?flightNumber=SP101&seatClass=BUSINESS` | SOAP `SeatMap` |
+| POST | `/api/bookings` | `{flightNumber, passengerName, email, seatClass, seat}` → SOAP `BookTicket` |
+| GET | `/api/bookings?email=` | SOAP `ListBookings` |
+| GET | `/api/bookings/{reference}` | SOAP `GetBooking` |
+| DELETE | `/api/bookings/{reference}` | SOAP `CancelBooking` |
+| POST | `/api/bookings/{reference}/checkin` | `{seat}` → SOAP `CheckIn` |
+| GET | `/api/events`, `/api/events/stream` | live activity (REST + SSE) |
+| POST | `/api/auth/login` | `{username, password}` → signed JWT |
+| GET | `/api/auth/me`, POST `/api/auth/refresh` | token inspection / renewal |
+| GET | `/api/admin/stats`, `/api/admin/ping` | requires `ROLE_ADMIN` |
+
+Example:
+
 ```
 curl http://localhost:8080/api/flights
-curl http://localhost:8080/api/flights/SP101
-curl http://localhost:8080/api/telemetry
+curl -X POST http://localhost:8080/api/fare/quote -H "Content-Type: application/json" ^
+  -d "{\"flightNumber\":\"SP101\",\"seatClass\":\"BUSINESS\",\"seat\":\"5C\"}"
 curl -X POST http://localhost:8080/api/bookings -H "Content-Type: application/json" ^
-  -d "{\"flightNumber\":\"SP101\",\"passengerName\":\"Med Nour\",\"email\":\"med@example.com\",\"seatClass\":\"BUSINESS\"}"
-curl http://localhost:8080/api/bookings/SP-XXXXXX
-curl -X DELETE http://localhost:8080/api/bookings/SP-XXXXXX
+  -d "{\"flightNumber\":\"SP101\",\"passengerName\":\"Med Nour\",\"email\":\"med@example.com\",\"seatClass\":\"BUSINESS\",\"seat\":\"5C\"}"
+curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" ^
+  -d "{\"username\":\"admin\",\"password\":\"skyport-admin\"}"
 ```
+
 (The `^` continues a line in Windows cmd. On Linux/macOS use `\`.)
 
-**SOAP (booking-service)**
-```
-curl http://localhost:8081/ws/bookings.wsdl
-```
-Open the WSDL in SoapUI or Postman to call `BookTicket`, `GetBooking` and `CancelBooking`. Raw request example:
+## SOAP (booking-service, port 8081)
+
+WSDL: `http://localhost:8081/ws/bookings.wsdl` — operations: `BookTicket`, `GetBooking`, `CancelBooking`, `ListBookings`, `CheckIn`, `SeatMap`, `QuoteTicket`, `GetStats`.
+
 ```xml
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:bk="http://skyport.com/booking">
   <soapenv:Body>
-    <bk:GetBookingRequest><bk:reference>SP-XXXXXX</bk:reference></bk:GetBookingRequest>
+    <bk:QuoteTicketRequest>
+      <bk:basePrice>155</bk:basePrice>
+      <bk:seatClass>BUSINESS</bk:seatClass>
+      <bk:passengers>1</bk:passengers>
+      <bk:seat>5C</bk:seat>
+    </bk:QuoteTicketRequest>
   </soapenv:Body>
 </soapenv:Envelope>
 ```
-POST it to `http://localhost:8081/ws` with header `Content-Type: text/xml`.
 
-**gRPC (flight-service)** with [grpcurl](https://github.com/fullstorydev/grpcurl) (reflection is enabled)
+POST it to `http://localhost:8081/ws` with `Content-Type: text/xml`.
+
+## gRPC (flight-service, port 9090)
+
+Reflection is enabled, so [grpcurl](https://github.com/fullstorydev/grpcurl) works without the `.proto`:
+
 ```
 grpcurl -plaintext localhost:9090 list
+grpcurl -plaintext -d "{\"origin\":\"TUN\",\"destination\":\"FCO\"}" localhost:9090 skyport.FlightService/SearchFlights
+grpcurl -plaintext localhost:9090 skyport.FlightService/FleetStats
 grpcurl -plaintext -d "{\"flight_number\":\"SP202\"}" localhost:9090 skyport.FlightService/StreamTelemetry
 ```
 
 ## Project layout
 
 ```
-proto/skyport.proto                  gRPC contract (shared by flight-service and gateway)
-flight-service/                      gRPC server
-booking-service/src/main/resources/bookings.xsd   SOAP contract (WSDL is generated from it)
-gateway/src/main/resources/static/   web UI (index.html, styles.css, app.js)
-docker-compose.yml                   runs everything
+proto/skyport.proto                          gRPC contract (shared by flight-service and gateway)
+flight-service/                              gRPC server: catalog, search, stats, telemetry streams
+booking-service/src/main/resources/bookings.xsd   SOAP contract (WSDL generated from it)
+gateway/src/main/resources/static/           web UI (index.html, styles.css, app.js)
+docker-compose.yml                           runs everything
 ```
 
-## Ideas to extend it
+## Notes
 
-- Add seat maps and a `ListBookings` SOAP operation
-- Add JWT login to the gateway
-- Replace simulated flights with real data in `FlightGrpcService`
-- Add a healthcheck and Prometheus metrics to each service
-## Security findings
-
-Scans run on 27/11/2026 against the gateway.
-
-### Trivy: image `skyport-gateway:latest`
-
-47 vulnerabilities (11 CRITICAL, 36 HIGH), all in Java libraries inside `app.jar`. The Ubuntu base image has 0.
-
-| # | Finding | Library | Severity | Fix |
-|---|---------|---------|----------|-----|
-| 1 | CVE-2025-24813: potential remote code execution through partial PUT | tomcat-embed-core 10.1.20 | CRITICAL | Upgrade to 10.1.35 or later |
-| 2 | CVE-2024-38821: authorization bypass of static resources | spring-security-web 6.2.4 | CRITICAL | Upgrade to 6.2.7 or later |
-| 3 | CVE-2025-22228: BCryptPasswordEncoder does not enforce a maximum password length | spring-security-crypto 6.2.4 | HIGH | Upgrade to 6.2.10 or later |
-
-Most findings come from the Spring Boot 3.2.5 parent in `gateway/pom.xml`. Upgrading it to a newer 3.x release would pull in fixed versions of Tomcat, Spring Security and Jackson.
+- Fares are computed once, in `booking-service` (`Pricing`), and quoted through SOAP, so the price shown in the browser is the price stored in PostgreSQL.
+- Seat maps combine real bookings with deterministic simulated occupancy, so the cabin looks realistic without a second database.
+- JWT signing uses `JWT_SECRET`; the console user is created from `ADMIN_PASSWORD` at startup.
+- The Spring Boot parent is still 3.2.5, so a container scan will still report the Tomcat, Spring Security and Jackson CVEs listed in the project history. Upgrading the parent to a current 3.x release is the fix.

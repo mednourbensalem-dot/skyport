@@ -4,12 +4,14 @@
            targetNamespace="http://skyport.com/booking"
            elementFormDefault="qualified">
 
+  <!-- Book a seat. seat is optional: leave it empty and the service picks a free one. -->
   <xs:element name="BookTicketRequest">
     <xs:complexType><xs:sequence>
       <xs:element name="flightNumber" type="xs:string"/>
       <xs:element name="passengerName" type="xs:string"/>
       <xs:element name="email" type="xs:string"/>
       <xs:element name="seatClass" type="xs:string"/>
+      <xs:element name="seat" type="xs:string" minOccurs="0"/>
       <xs:element name="basePrice" type="xs:double"/>
     </xs:sequence></xs:complexType>
   </xs:element>
@@ -31,6 +33,75 @@
     <xs:complexType><xs:sequence><xs:element name="booking" type="tns:Booking"/></xs:sequence></xs:complexType>
   </xs:element>
 
+  <!-- Every ticket held by one email address, newest first. -->
+  <xs:element name="ListBookingsRequest">
+    <xs:complexType><xs:sequence><xs:element name="email" type="xs:string"/></xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="ListBookingsResponse">
+    <xs:complexType><xs:sequence>
+      <xs:element name="booking" type="tns:Booking" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+
+  <!-- Check in, optionally moving to another free seat in the same cabin. -->
+  <xs:element name="CheckInRequest">
+    <xs:complexType><xs:sequence>
+      <xs:element name="reference" type="xs:string"/>
+      <xs:element name="seat" type="xs:string" minOccurs="0"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="CheckInResponse">
+    <xs:complexType><xs:sequence><xs:element name="booking" type="tns:Booking"/></xs:sequence></xs:complexType>
+  </xs:element>
+
+  <!-- Seat inventory for one flight and cabin. -->
+  <xs:element name="SeatMapRequest">
+    <xs:complexType><xs:sequence>
+      <xs:element name="flightNumber" type="xs:string"/>
+      <xs:element name="seatClass" type="xs:string"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="SeatMapResponse">
+    <xs:complexType><xs:sequence>
+      <xs:element name="flightNumber" type="xs:string"/>
+      <xs:element name="seatClass" type="xs:string"/>
+      <xs:element name="seat" type="tns:Seat" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+
+  <!-- Fare quote: per-passenger base fare, taxes and fees, plus the grand total. -->
+  <xs:element name="QuoteTicketRequest">
+    <xs:complexType><xs:sequence>
+      <xs:element name="basePrice" type="xs:double"/>
+      <xs:element name="seatClass" type="xs:string"/>
+      <xs:element name="passengers" type="xs:int" minOccurs="0"/>
+      <xs:element name="seat" type="xs:string" minOccurs="0"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+  <xs:element name="QuoteTicketResponse">
+    <xs:complexType><xs:sequence>
+      <xs:element name="baseFare" type="xs:double"/>
+      <xs:element name="taxes" type="xs:double"/>
+      <xs:element name="fees" type="xs:double"/>
+      <xs:element name="total" type="xs:double"/>
+      <xs:element name="currency" type="xs:string"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+
+  <!-- Aggregates for the operations console. -->
+  <xs:element name="GetStatsRequest">
+    <xs:complexType><xs:sequence/></xs:complexType>
+  </xs:element>
+  <xs:element name="GetStatsResponse">
+    <xs:complexType><xs:sequence>
+      <xs:element name="totalBookings" type="xs:int"/>
+      <xs:element name="confirmed" type="xs:int"/>
+      <xs:element name="checkedIn" type="xs:int"/>
+      <xs:element name="cancelled" type="xs:int"/>
+      <xs:element name="revenue" type="xs:double"/>
+    </xs:sequence></xs:complexType>
+  </xs:element>
+
   <xs:complexType name="Booking">
     <xs:sequence>
       <xs:element name="reference" type="xs:string"/>
@@ -41,7 +112,18 @@
       <xs:element name="seat" type="xs:string"/>
       <xs:element name="price" type="xs:double"/>
       <xs:element name="status" type="xs:string"/>
+      <xs:element name="boardingGroup" type="xs:string"/>
+      <xs:element name="checkedInAt" type="xs:string"/>
       <xs:element name="createdAt" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="Seat">
+    <xs:sequence>
+      <xs:element name="number" type="xs:string"/>
+      <xs:element name="taken" type="xs:boolean"/>
+      <xs:element name="extra" type="xs:double"/>
+      <xs:element name="window" type="xs:boolean"/>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>

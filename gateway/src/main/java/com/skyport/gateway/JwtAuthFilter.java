@@ -24,12 +24,13 @@ class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
+        if (header != null && header.startsWith("Bearer ")
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                String user = jwt.validate(header.substring(7));
+                JwtService.Session session = jwt.validate(header.substring(7));
                 SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(user, null,
-                                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+                        new UsernamePasswordAuthenticationToken(session.username(), null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + session.role()))));
             } catch (JwtException | IllegalArgumentException e) {
                 // invalid or expired token: the request stays unauthenticated, so it gets 401
             }

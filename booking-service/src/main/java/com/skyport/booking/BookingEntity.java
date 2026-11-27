@@ -18,5 +18,7 @@ public class BookingEntity {
     public String seat;
     public double price;
     public String status;
+    public String boardingGroup;
+    public Instant checkedInAt;
     public Instant createdAt;
 }

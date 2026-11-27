@@ -3,120 +3,325 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-i18n="meta.title">SkyPort — live flights &amp; tickets</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23B11226'/%3E%3Cpath fill='%23ffffff' d='M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z' transform='translate(2 2) scale(.83)'/%3E%3C/svg%3E">
+  <title data-i18n="meta.title">SkyPort — live flights &amp; booking</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("skyport.theme");
+        var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      } catch (e) { document.documentElement.dataset.theme = "light"; }
+    })();
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23B11226'/%3E%3Cpath fill='%23C9A227' d='M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z' transform='translate(2 2) scale(.83)'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Cairo:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Inter:wght@400;500;600;700&family=Cairo:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="top">
+  <header class="site-head">
     <a class="brand" href="#top" aria-label="SkyPort home">
       <span class="brand-mark" id="brandMark"></span>
-      <span class="brand-name">SkyPort</span>
+      <span class="brand-text"><b>SkyPort</b><small data-i18n="brand.tag">Tunis–Carthage</small></span>
     </a>
-    <nav aria-label="Sections">
-      <a href="#map" data-i18n="nav.map">Live map</a>
-      <a href="#board" data-i18n="nav.board">Departures</a>
-      <a href="#tickets" data-i18n="nav.tickets">My tickets</a>
+    <nav class="site-nav" aria-label="Sections">
+      <a href="#track" data-i18n="nav.track">Live</a>
+      <a href="#board" data-i18n="nav.board">Flights</a>
+      <a href="#tickets" data-i18n="nav.tickets">Tickets</a>
+      <a href="#admin" data-i18n="nav.admin">Console</a>
     </nav>
-    <div class="lang" role="group" aria-label="Language">
-      <button type="button" class="lang-btn" data-lang="en">EN</button>
-      <button type="button" class="lang-btn" data-lang="fr">FR</button>
-      <button type="button" class="lang-btn" data-lang="ar">ع</button>
+    <div class="head-tools">
+      <button type="button" class="theme-btn" id="themeBtn" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13.2A8.6 8.6 0 1 1 10.8 3.5a7 7 0 0 0 9.7 9.7Z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.1 5.1l1.6 1.6M17.3 17.3l1.6 1.6M18.9 5.1l-1.6 1.6M6.7 17.3l-1.6 1.6"/></svg>
+      </button>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" data-lang="fr">FR</button>
+        <button type="button" class="lang-btn" data-lang="ar">ع</button>
+      </div>
+      <span class="live" id="live" role="status"><i></i><span data-i18n="status.connecting">Connecting</span></span>
     </div>
-    <span class="live" id="live" role="status"><i></i><span data-i18n="status.connecting">Connecting</span></span>
   </header>
 
   <main id="top">
-    <section class="hero" id="map">
-      <div class="hero-head">
-        <h1 data-i18n="hero.title">Live flights from Tunis–Carthage</h1>
-        <p data-i18n="hero.subtitle">Track SkyPort aircraft across the Mediterranean in real time, then book your seat in seconds.</p>
-      </div>
-
-      <div class="hero-body">
-        <div class="map-wrap">
-          <div id="map" class="map" role="application" aria-label="Live map of SkyPort aircraft"></div>
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <span class="eyebrow" data-i18n="hero.eyebrow">Live network · Mediterranean</span>
+          <h1 data-i18n="hero.title">Flights over the Mediterranean, tracked second by second.</h1>
+          <p data-i18n="hero.sub">Watch the SkyPort fleet move in real time, compare cabins, choose your seat and check in — all from one page.</p>
+          <div class="hero-stats">
+            <div><b id="statAirborne">—</b><span data-i18n="hero.airborne">Airborne now</span></div>
+            <div><b id="statAlt">—</b><span data-i18n="hero.alt">Average altitude</span></div>
+            <div><b id="statSeats">—</b><span data-i18n="hero.seats">Seats available</span></div>
+            <div><b id="statOnTime">—</b><span data-i18n="hero.onTime">On-time average</span></div>
+          </div>
         </div>
 
-        <aside class="panel" aria-live="polite">
-          <div class="panel-top">
-            <div>
-              <div class="panel-flight" id="pFlight">SP101</div>
-              <div class="panel-route" id="pRoute" dir="ltr">Tunis to Paris</div>
-            </div>
-            <span class="phase" id="pPhase">Cruising</span>
+        <form class="planner" id="planner">
+          <div class="planner-head">
+            <h2 data-i18n="planner.title">Plan a flight</h2>
+            <span class="planner-badge" data-i18n="planner.badge">9 routes</span>
           </div>
-          <div class="stats">
-            <div><b id="pAlt">0</b><span data-i18n="stat.altitude">Altitude, ft</span></div>
-            <div><b id="pSpd">0</b><span data-i18n="stat.speed">Speed, kts</span></div>
-            <div><b id="pHdg">0</b><span data-i18n="stat.heading">Heading, °</span></div>
-            <div><b id="pEta">0</b><span data-i18n="stat.eta">Arrives in</span></div>
+          <label class="field">
+            <span data-i18n="planner.from">From</span>
+            <select id="plFrom"></select>
+          </label>
+          <label class="field">
+            <span data-i18n="planner.to">To</span>
+            <select id="plTo"></select>
+          </label>
+          <div class="field">
+            <span data-i18n="planner.cabin">Cabin</span>
+            <div class="chips" id="plannerCabins"></div>
           </div>
-          <div class="trip" aria-hidden="true"><i id="pBar"></i></div>
-          <button class="btn primary" id="pBook" type="button" data-i18n="btn.bookFlight">Book this flight</button>
-        </aside>
+          <button class="btn primary wide" type="submit" data-i18n="planner.search">Search flights</button>
+          <p class="planner-note" id="plannerNote"></p>
+        </form>
       </div>
     </section>
 
-    <section class="board-sec" id="board">
+    <section class="sec" id="track">
       <div class="sec-head">
-        <div>
-          <h2 data-i18n="board.title">Departures</h2>
-          <p data-i18n="board.note">Prices are for Economy. Business costs 2.4× more, First 4×.</p>
+        <span class="sec-num">01</span>
+        <div class="sec-title">
+          <h2 data-i18n="track.title">Live operations</h2>
+          <p data-i18n="track.note">gRPC streams one frame per second per aircraft; the gateway fans it out over SSE.</p>
         </div>
-        <input class="search" id="boardSearch" type="search" autocomplete="off" data-i18n-ph="board.search" placeholder="Search destination, flight or city…">
+      </div>
+
+      <div class="ops">
+        <div class="map-card">
+          <div id="map"></div>
+          <div class="map-legend">
+            <span><i class="dot hub"></i>TUN</span>
+            <span><i class="dot dest"></i><em data-i18n="map.dest">Destination</em></span>
+            <span><i class="line"></i><em data-i18n="map.route">Route</em></span>
+          </div>
+        </div>
+
+        <aside class="inspect">
+          <div class="inspect-head">
+            <div>
+              <span class="inspect-label" data-i18n="inspect.flight">Flight</span>
+              <b class="inspect-no" id="pFlight">—</b>
+              <span class="inspect-route" id="pRoute" dir="ltr">—</span>
+            </div>
+            <span class="phase" id="pPhase">—</span>
+          </div>
+
+          <div class="gauges">
+            <div class="gauge"><b id="pAlt">0</b><span data-i18n="gauge.alt">Altitude, ft</span></div>
+            <div class="gauge"><b id="pSpd">0</b><span data-i18n="gauge.spd">Speed, kts</span></div>
+            <div class="gauge"><b id="pHdg">0</b><span data-i18n="gauge.hdg">Heading</span></div>
+            <div class="gauge"><b id="pEta">0</b><span data-i18n="gauge.eta">Arrives in</span></div>
+          </div>
+
+          <dl class="micro">
+            <div><dt data-i18n="micro.wind">Wind</dt><dd id="pWind">—</dd></div>
+            <div><dt data-i18n="micro.temp">Outside</dt><dd id="pTemp">—</dd></div>
+            <div><dt data-i18n="micro.fuel">Fuel</dt><dd id="pFuel">—</dd></div>
+            <div><dt data-i18n="micro.vs">Vertical</dt><dd id="pVs">—</dd></div>
+          </dl>
+
+          <div class="trip"><span id="pBar"></span></div>
+
+          <div class="inspect-actions">
+            <button class="btn primary" id="pBook" type="button" data-i18n="inspect.book">Book this flight</button>
+            <span class="fare-hint" id="pFare"></span>
+          </div>
+        </aside>
+      </div>
+
+      <div class="feed-card">
+        <div class="feed-head">
+          <h3 data-i18n="feed.title">Live activity</h3>
+          <span class="feed-dot"></span>
+        </div>
+        <ul class="feed" id="feed"></ul>
+      </div>
+    </section>
+
+    <section class="sec" id="board">
+      <div class="sec-head">
+        <span class="sec-num">02</span>
+        <div class="sec-title">
+          <h2 data-i18n="board.title">Departures</h2>
+          <p data-i18n="board.note">Fares shown are Economy base. Cabins and seats are priced by the booking service.</p>
+        </div>
+        <div class="board-tools">
+          <input class="search" id="boardSearch" type="search" autocomplete="off"
+                 data-i18n-ph="board.search" placeholder="Search flight, city or gate…">
+          <span class="result-count" id="boardCount"></span>
+        </div>
+      </div>
+
+      <div class="board-filters">
+        <div class="chips" id="phaseChips"></div>
       </div>
       <div class="board" id="boardRows" role="list"></div>
     </section>
 
-    <section class="tickets-sec" id="tickets">
+    <section class="sec" id="tickets">
       <div class="sec-head">
-        <div>
+        <span class="sec-num">03</span>
+        <div class="sec-title">
           <h2 data-i18n="tickets.title">My tickets</h2>
-          <p data-i18n="tickets.note">Tickets you book here are stored securely and available on this device.</p>
+          <p data-i18n="tickets.note">Tickets are stored by the SOAP booking service and remembered on this device.</p>
         </div>
       </div>
       <div class="tickets" id="ticketList"></div>
     </section>
+
+    <section class="sec" id="admin">
+      <div class="sec-head">
+        <span class="sec-num">04</span>
+        <div class="sec-title">
+          <h2 data-i18n="admin.title">Operations console</h2>
+          <p data-i18n="admin.note">Protected by Spring Security. The token is a signed JWT.</p>
+        </div>
+      </div>
+
+      <div class="console">
+        <div class="console-copy">
+          <h3 data-i18n="admin.cardTitle">Ground staff</h3>
+          <p data-i18n="admin.cardNote">Sign in to see live fleet numbers from the gRPC service and revenue from the SOAP service.</p>
+          <ul class="console-list">
+            <li data-i18n="admin.point1">Fleet altitude, speed and phase — gRPC FleetStats</li>
+            <li data-i18n="admin.point2">Bookings, check-ins and revenue — SOAP GetStats</li>
+            <li data-i18n="admin.point3">Role-based access with a one-hour JWT</li>
+          </ul>
+        </div>
+
+        <div class="console-body">
+          <form class="admin-form" id="adminLogin">
+            <label class="field">
+              <span data-i18n="admin.user">Username</span>
+              <input id="adminUser" autocomplete="username" value="admin" required>
+            </label>
+            <label class="field">
+              <span data-i18n="admin.pass">Password</span>
+              <input id="adminPass" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="btn primary wide" type="submit" data-i18n="admin.login">Sign in</button>
+            <p class="form-error" id="adminError" role="alert" hidden></p>
+            <p class="admin-hint" data-i18n="admin.hint">Default user admin. Set ADMIN_PASSWORD and JWT_SECRET in docker-compose.</p>
+          </form>
+
+          <div class="admin-panel" id="adminPanel" hidden>
+            <div class="admin-top">
+              <span id="adminWho"></span>
+              <button class="btn ghost small" id="adminLogout" type="button" data-i18n="admin.logout">Sign out</button>
+            </div>
+            <div class="admin-stats" id="adminStats"></div>
+            <div class="admin-table" id="adminTable"></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer class="foot" data-i18n="footer.note">SkyPort is a demo platform. All flights are simulated.</footer>
+  <footer class="foot" data-i18n="footer.note">SkyPort is a demo. Flights are simulated; bookings persist in PostgreSQL.</footer>
 
   <dialog id="bookDialog" aria-labelledby="bkTitle">
     <form id="bookForm" method="dialog">
-      <div class="dlg-head">
+      <header class="dlg-head">
         <div>
+          <span class="dlg-kicker" data-i18n="dlg.kicker">SkyPort booking</span>
           <h3 id="bkTitle" data-i18n="dlg.title">Book a seat</h3>
           <p id="bkRoute" dir="ltr"></p>
         </div>
         <button type="button" class="x" id="bkClose" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="steps" id="bkSteps"></div>
+
+      <div class="dlg-body">
+        <div class="step-panel" data-step="1">
+          <label class="field">
+            <span data-i18n="dlg.name">Passenger name</span>
+            <input id="bkName" autocomplete="name" required data-i18n-ph="dlg.namePh" placeholder="As on your passport">
+          </label>
+          <label class="field">
+            <span data-i18n="dlg.email">Email</span>
+            <input id="bkEmail" type="email" autocomplete="email" required data-i18n-ph="dlg.emailPh" placeholder="you@example.com">
+          </label>
+          <div class="field">
+            <span data-i18n="dlg.cabin">Cabin</span>
+            <div class="chips" id="bkCabins"></div>
+          </div>
+        </div>
+
+        <div class="step-panel" data-step="2" hidden>
+          <div class="seat-head">
+            <span data-i18n="dlg.seat">Choose a seat</span>
+            <button class="link" id="bkAnySeat" type="button" data-i18n="dlg.anySeat">Let us pick</button>
+          </div>
+          <div class="seatmap" id="bkSeatMap"></div>
+          <div class="seat-legend">
+            <span><i class="sq free"></i><em data-i18n="legend.free">Free</em></span>
+            <span><i class="sq taken"></i><em data-i18n="legend.taken">Taken</em></span>
+            <span><i class="sq picked"></i><em data-i18n="legend.picked">Selected</em></span>
+            <span><i class="sq plus"></i><em data-i18n="legend.plus">Extra fee</em></span>
+          </div>
+          <p class="seat-note" id="bkSeatNote" data-i18n="dlg.seatNote">Optional. Seats with a gold dot carry an extra fee.</p>
+        </div>
+
+        <div class="step-panel" data-step="3" hidden>
+          <div class="review" id="bkReview"></div>
+        </div>
       </div>
-
-      <label>
-        <span data-i18n="dlg.passenger">Passenger name</span>
-        <input id="bkName" autocomplete="name" required data-i18n-ph="dlg.passengerPh" placeholder="As on your passport">
-      </label>
-      <label>
-        <span data-i18n="dlg.email">Email</span>
-        <input id="bkEmail" type="email" autocomplete="email" required data-i18n-ph="dlg.emailPh" placeholder="you@example.com">
-      </label>
-
-      <fieldset>
-        <legend data-i18n="dlg.seatClass">Seat class</legend>
-        <div class="classes" id="bkClasses"></div>
-      </fieldset>
 
       <p class="form-error" id="bkError" role="alert" hidden></p>
-      <div class="dlg-foot">
-        <button type="button" class="btn ghost" id="bkCancel" data-i18n="btn.cancel">Cancel</button>
-        <button type="submit" class="btn primary" id="bkSubmit" data-i18n="btn.bookSeat">Book seat</button>
-      </div>
+
+      <footer class="dlg-foot">
+        <span class="dlg-total" id="bkTotal"></span>
+        <div class="dlg-btns">
+          <button type="button" class="btn ghost" id="bkBack" data-i18n="btn.back">Back</button>
+          <button type="button" class="btn ghost" id="bkCancel" data-i18n="btn.cancel">Cancel</button>
+          <button type="button" class="btn primary" id="bkNext" data-i18n="btn.continue">Continue</button>
+          <button type="submit" class="btn primary" id="bkSubmit" hidden data-i18n="btn.confirm">Confirm booking</button>
+        </div>
+      </footer>
     </form>
   </dialog>
+
+  <dialog id="seatDialog" aria-labelledby="ciTitle">
+    <form id="ciForm" method="dialog">
+      <header class="dlg-head">
+        <div>
+          <span class="dlg-kicker" data-i18n="checkin.kicker">Boarding</span>
+          <h3 id="ciTitle" data-i18n="checkin.title">Check in</h3>
+          <p id="ciRoute" dir="ltr"></p>
+        </div>
+        <button type="button" class="x" id="ciClose" aria-label="Close">&times;</button>
+      </header>
+      <div class="dlg-body">
+        <div class="seatmap" id="ciSeatMap"></div>
+        <div class="seat-legend">
+          <span><i class="sq free"></i><em data-i18n="legend.free">Free</em></span>
+          <span><i class="sq taken"></i><em data-i18n="legend.taken">Taken</em></span>
+          <span><i class="sq picked"></i><em data-i18n="legend.picked">Selected</em></span>
+        </div>
+        <p class="seat-note" id="ciNote" data-i18n="checkin.hint">Choose a free seat or keep your current one.</p>
+      </div>
+      <p class="form-error" id="ciError" role="alert" hidden></p>
+      <footer class="dlg-foot">
+        <span class="dlg-total" id="ciSeat"></span>
+        <div class="dlg-btns">
+          <button type="button" class="btn ghost" id="ciCancel" data-i18n="btn.cancel">Cancel</button>
+          <button type="submit" class="btn primary" data-i18n="checkin.confirm">Confirm check-in</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+  <button type="button" class="to-top" id="toTop" aria-label="Back to top" title="Back to top">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5.5M5.8 11.7 12 5.5l6.2 6.2"/></svg>
+  </button>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
