@@ -77,3 +77,18 @@ docker-compose.yml                   runs everything
 - Add JWT login to the gateway
 - Replace simulated flights with real data in `FlightGrpcService`
 - Add a healthcheck and Prometheus metrics to each service
+## Security findings
+
+Scans run on 27/11/2026 against the gateway.
+
+### Trivy: image `skyport-gateway:latest`
+
+47 vulnerabilities (11 CRITICAL, 36 HIGH), all in Java libraries inside `app.jar`. The Ubuntu base image has 0.
+
+| # | Finding | Library | Severity | Fix |
+|---|---------|---------|----------|-----|
+| 1 | CVE-2025-24813: potential remote code execution through partial PUT | tomcat-embed-core 10.1.20 | CRITICAL | Upgrade to 10.1.35 or later |
+| 2 | CVE-2024-38821: authorization bypass of static resources | spring-security-web 6.2.4 | CRITICAL | Upgrade to 6.2.7 or later |
+| 3 | CVE-2025-22228: BCryptPasswordEncoder does not enforce a maximum password length | spring-security-crypto 6.2.4 | HIGH | Upgrade to 6.2.10 or later |
+
+Most findings come from the Spring Boot 3.2.5 parent in `gateway/pom.xml`. Upgrading it to a newer 3.x release would pull in fixed versions of Tomcat, Spring Security and Jackson.
