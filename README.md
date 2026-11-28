@@ -159,3 +159,9 @@ booking-service/               SOAP booking service and JPA persistence
 gateway/                       REST/SSE API, browser UI, and gateway tests
 docker-compose.yml             Full-stack local environment
 ```
+## Run it
+
+## Demo
+
+![Live flight dashboard](docs/dashboard.png)
+![Booking confirmation](docs/booking.png)
